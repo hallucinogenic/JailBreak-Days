@@ -13,4 +13,6 @@ Things that this plugin has:
 
 I hope you enjoyed!
 
+# I MADE THIS LONG TIME AGO, PROBABLY I'LL SUPPORT IT AGAIN
+
 My Steam Profile if you have any questions -> http://steamcommunity.com/id/HallucinogenicTroll/
