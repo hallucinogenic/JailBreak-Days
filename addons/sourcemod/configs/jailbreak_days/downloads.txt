@@ -39,3 +39,17 @@ models/player/custom_player/kodua/hellknight/hellknight.mdl
 models/player/custom_player/kodua/hellknight/hellknight.dx90.vtx
 models/player/custom_player/kodua/hellknight/hellknight.vvd
 models/player/custom_player/kodua/hellknight/hellknight.phy
+
+// Hitler
+
+materials/models/player/kuristaja/hitler/hitlerbody_colspec.vmt
+materials/models/player/kuristaja/hitler/hitlerhead_colspec.vmt
+materials/models/player/kuristaja/hitler/hitlerbody_colspec.vtf
+materials/models/player/kuristaja/hitler/hitlerbody_normal.vtf
+materials/models/player/kuristaja/hitler/hitlerhead_colspec.vtf
+materials/models/player/kuristaja/hitler/hitlerhead_normal.vtf
+	
+models/player/custom_player/kuristaja/hitler/hitler.dx90.vtx
+models/player/custom_player/kuristaja/hitler/hitler.mdl
+models/player/custom_player/kuristaja/hitler/hitler.phy
+models/player/custom_player/kuristaja/hitler/hitler.vvd

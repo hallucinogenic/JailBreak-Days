@@ -1,70 +1,54 @@
-#define ESCONDIDAS1 "ESCONDIDAS1"
-#define ESCONDIDAS2 "ESCONDIDAS2"
-
-public int Escondidas_Menu_Handler(Menu menu_escondidas, MenuAction action, int param1, int param2)
+public int Escondidas_Menu_Handler(Menu menu, MenuAction action, int client, int choice)
 {
 	if(action == MenuAction_Select)
 	{
-		char info[32];
-		menu_escondidas.GetItem(param2, info, sizeof(info));
-		if(StrEqual(info, ESCONDIDAS1))
+		switch(choice)
 		{
-			AtivarEscondidas();
-		}
-		if(StrEqual(info, ESCONDIDAS2))
-		{
-			DesativarEscondidas();
+			case 0:AtivarEscondidas();
+			case 1:DesativarEscondidas();
 		}
 	}
 	else if (action == MenuAction_End)
 	{
-		delete menu_escondidas;
+		delete menu;
 	}
 }
 
 public Action Menu_Escondidas(int client, int args)
 {
-	if(g_escondidas_enable)
+	if(g_JailbreakDays_HideAndSeek_enable)
 	{
-		if(num_special_days < GetConVarInt(g_days_time))
+		if(num_special_days < g_JailbreakDays_Days_Time)
 		{
-			PrintToChat(client, "[\x04Jailbreak Days\x01] Só poderás ativar este dia daqui a \x0E%d\x01 rondas!", (GetConVarInt(g_days_time) - num_special_days));
+			PrintToChat(client, "[\x04Jailbreak Days\x01] You can only enable this day after \x0E%d\x01 rounds!", (g_JailbreakDays_Days_Time - num_special_days));
 		}
 		else
 		{
-			if((warden_iswarden(client)) || CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
+			if((warden_iswarden(client)) || (g_JailbreakDays_Admins_EnableDays && CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC)))
 			{
-				Menu menu_escondidas = new Menu(Escondidas_Menu_Handler);
-				menu_escondidas.SetTitle("Menu das Escondidas da PT'Fun");
-				if(g_escondidas_handle)
-				{
-					menu_escondidas.AddItem("ESCONDIDAS1", "Ativar as Escondidas", ITEMDRAW_DISABLED);
-					menu_escondidas.AddItem("ESCONDIDAS2", "Desativar as Escondidas");
-				}
-				else
-				{
-					menu_escondidas.AddItem("ESCONDIDAS1", "Ativar as Escondidas");
-					menu_escondidas.AddItem("ESCONDIDAS2", "Desativar as Escondidas", ITEMDRAW_DISABLED);
-				}
-				menu_escondidas.ExitButton = true;
-				menu_escondidas.Display(client, 20);
+				Menu menu = new Menu(Escondidas_Menu_Handler);
+				menu.SetTitle("Hide and Seek Day Menu");
+				menu.AddItem("1", "Enable Hide and Seek Day", g_escondidas_handle?ITEMDRAW_DISABLED:ITEMDRAW_DEFAULT);
+				menu.AddItem("2", "Disable Hide and Seek Day", g_escondidas_handle?ITEMDRAW_DEFAULT:ITEMDRAW_DISABLED);
+				menu.ExitButton = true;
+				menu.Display(client, 20);
 			}
 			else
 			{
-				PrintToChat(client, "[\x04Jailbreak Days\x01] Necessitas de ser \x0BWarden\x01 ou \x07Admin\x01 para usar este comando!");
+				PrintToChat(client, "[\x04Jailbreak Days\x01] You need to be an \x0BWarden\x01 %s to use this command!", g_JailbreakDays_Admins_EnableDays?"or an \x07Admin\x01":"");
 			}
 		}
 	}
 	else
 	{
-		PrintToChat(client, "[\x04Jailbreak Days\x01] Este dia está desativado!");
+		PrintToChat(client, "[\x04Jailbreak Days\x01] This day is disabled!");
 	}
 	return Plugin_Handled;
 }
 
 public Action AtivarEscondidas()
 {
-	if(g_restrict)
+	if(g_JailbreakDays_WeaponRestrict && g_restrict)
 	{
 		Restrict_SetGroupRestriction(WeaponTypePistol, 2, 0);
 		Restrict_SetGroupRestriction(WeaponTypeSMG, 2, 0);
@@ -96,24 +80,13 @@ public Action AtivarEscondidas()
 				ThirdPerson[i] = false;
 				ClientCommand(i, "firstperson");
 			}
+			ShowNewHud(i, 0, 255, 0, "As Escondidas foram ativadas!");
 		}
 	}
 	
 	ThirdPerson_Handle = false;
 	
-	
-	//SetConVarBool(g_AFKManager, false);
-	
-	
 	g_escondidas_handle = true;
-	
-	for (int i = 0; i <= MaxClients; i++)
-	{
-		if(IsValidClient(i))
-		{
-			ShowNewHud(i, 0, 255, 0, "As Escondidas foram ativadas!");
-		}
-	}
 	
 	PrintToChatAll("[\x04Jailbreak Days\x01] As Escondidas foram ativadas!");
 	
@@ -126,7 +99,7 @@ public Action AtivarEscondidas()
 
 public Action DesativarEscondidas()
 {	
-	if(g_restrict)
+	if(g_JailbreakDays_WeaponRestrict && g_restrict)
 	{
 		Restrict_SetGroupRestriction(WeaponTypePistol, 2, -1);
 		Restrict_SetGroupRestriction(WeaponTypeSMG, 2, -1);
@@ -147,22 +120,13 @@ public Action DesativarEscondidas()
 			{
 				SetEntProp(i, Prop_Data, "m_takedamage", 2, 1);
 			}
-		}
-	}
-	
-	//SetConVarBool(g_AFKManager, true);
-	
-	ThirdPerson_Handle = true;
-	g_escondidas_handle = false;
-	
-	
-	for (int i = 0; i <= MaxClients; i++)
-	{
-		if(IsValidClient(i))
-		{
 			ShowNewHud(i, 255, 0, 0, "As Escondidas foram desativadas!");
 		}
 	}
+	
+	
+	ThirdPerson_Handle = true;
+	g_escondidas_handle = false;
 	
 	PrintToChatAll("[\x04Jailbreak Days\x01] As Escondidas foram desativadas!");
 }

@@ -1,41 +1,33 @@
-#define APANHADAS1 "APANHADAS1"
-#define APANHADAS2 "APANHADAS2"
-
-public int Apanhadas_Menu_Handler(Menu menu_apanhadas, MenuAction action, int param1, int param2)
+public int Apanhadas_Menu_Handler(Menu menu, MenuAction action, int client, int choice)
 {
 	if(action == MenuAction_Select)
 	{
-		char info[32];
-		menu_apanhadas.GetItem(param2, info, sizeof(info));
-		if(StrEqual(info, APANHADAS1))
+		switch(choice)
 		{
-			AtivarApanhadas();
-		}
-		if(StrEqual(info, APANHADAS2))
-		{
-			DesativarApanhadas();
+			case 0:AtivarApanhadas();
+			case 1:DesativarApanhadas();
 		}
 	}
 	else if (action == MenuAction_End)
 	{
-		delete menu_apanhadas;
+		delete menu;
 	}
 }
 
 public Action Menu_Apanhadas(int client, int args)
 {
-	if(g_apanhadas_enable)
+	if(g_JailbreakDays_CatchTheDuck_enable)
 	{
-		if(num_special_days < GetConVarInt(g_days_time))
+		if(num_special_days < g_JailbreakDays_Days_Time)
 		{
-			PrintToChat(client, "[\x04Jailbreak Days\x01] Só poderás ativar este dia daqui a \x0E%d\x01 rondas!", (GetConVarInt(g_days_time) - num_special_days));
+			PrintToChat(client, "[\x04Jailbreak Days\x01] You can only enable this day after \x0E%d\x01 rounds!", (g_JailbreakDays_Days_Time - num_special_days));
 		}
 		else
 		{
-			if((warden_iswarden(client)) || CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
+			if((warden_iswarden(client)) || (g_JailbreakDays_Admins_EnableDays && CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC)))
 			{
 				Menu menu_apanhadas = new Menu(Apanhadas_Menu_Handler);
-				menu_apanhadas.SetTitle("Menu das Apanhadas da PT'Fun");
+				menu_apanhadas.SetTitle("Menu das Apanhadas");
 				if(g_apanhadas_handle)
 				{
 					menu_apanhadas.AddItem("APANHADAS1", "Ativar as Apanhadas", ITEMDRAW_DISABLED);
@@ -51,20 +43,20 @@ public Action Menu_Apanhadas(int client, int args)
 			}
 			else
 			{
-				PrintToChat(client, "[\x04Jailbreak Days\x01] Necessitas de ser \x0BWarden\x01 ou \x07Admin\x01 para usar este comando!");
+				PrintToChat(client, "[\x04Jailbreak Days\x01] You need to be an \x0BWarden\x01 %s to use this command!", g_JailbreakDays_Admins_EnableDays?"or an \x07Admin\x01":"");
 			}
 		}
 	}
 	else
 	{
-		PrintToChat(client, "[\x04Jailbreak Days\x01] Este dia está desativado!");
+		PrintToChat(client, "[\x04Jailbreak Days\x01] This day is disabled!");
 	}
 	return Plugin_Handled;
 }
 
 public Action AtivarApanhadas()
 {	
-	if(g_restrict)
+	if(g_JailbreakDays_WeaponRestrict && g_restrict)
 	{
 		Restrict_SetGroupRestriction(WeaponTypePistol, 2, 0);
 		Restrict_SetGroupRestriction(WeaponTypeSMG, 2, 0);
@@ -93,29 +85,32 @@ public Action AtivarApanhadas()
 		{
 			DisarmPlayerWeapons(i);
 			GivePlayerItem(i, "weapon_knife");
-			SetEntPropFloat(i, Prop_Data, "m_flLaggedMovementValue", 2.0);
-			SetEntityGravity(i, 0.3);
+			
+			if(g_JailbreakDays_CatchTheDuck_speed != 0.0)
+			{
+				SetEntPropFloat(i, Prop_Data, "m_flLaggedMovementValue", g_JailbreakDays_CatchTheDuck_speed);
+			}
+			
+			if(g_JailbreakDays_CatchTheDuck_gravity != 0.0)
+			{
+				SetEntityGravity(i, g_JailbreakDays_CatchTheDuck_gravity);
+			}
+			
 			if(GetClientTeam(i) == 3)
 			{
 				SetEntProp(i, Prop_Data, "m_takedamage", 0, 1);
 			}
-			EmitSoundToClientAny(i, "misc/ptfun/jailbreak/apanhadas/music1.mp3", SOUND_FROM_PLAYER, SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS, 0.25);
-		}
-	}
-	
-	SetConVarInt(g_gravity, 240);
-	
-	g_apanhadas_handle = true;
-	
-	
-	
-	for (int i = 0; i <= MaxClients; i++)
-	{
-		if(IsValidClient(i))
-		{
+			
+			if(g_JailbreakDays_Sounds_Enable)
+			{
+				EmitSoundToClientAny(i, "misc/ptfun/jailbreak/apanhadas/music1.mp3", SOUND_FROM_PLAYER, SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS, 0.25);
+			}
 			ShowNewHud(i, 0, 255, 0, "As Apanhadas foram ativadas!");
 		}
 	}
+
+	
+	g_apanhadas_handle = true;
 	
 	PrintToChatAll("[\x04Jailbreak Days\x01] As Apanhadas foram ativadas!");
 	
@@ -128,7 +123,7 @@ public Action AtivarApanhadas()
 
 public Action DesativarApanhadas()
 {	
-	if(g_restrict)
+	if(g_JailbreakDays_WeaponRestrict && g_restrict)
 	{
 		Restrict_SetGroupRestriction(WeaponTypePistol, 2, -1);
 		Restrict_SetGroupRestriction(WeaponTypeSMG, 2, -1);
@@ -155,26 +150,26 @@ public Action DesativarApanhadas()
 	{
 		if(IsValidClient(i))
 		{
-			SetEntPropFloat(i, Prop_Data, "m_flLaggedMovementValue", 1.0);
-			SetEntityGravity(i, 1.0);
+			
+			if(g_JailbreakDays_CatchTheDuck_speed != 0.0)
+			{
+				SetEntPropFloat(i, Prop_Data, "m_flLaggedMovementValue", 1.0);
+			}
+			
+			if(g_JailbreakDays_CatchTheDuck_gravity != 0.0)
+			{
+				SetEntityGravity(i, 1.0);
+			}
+			
 			if(GetClientTeam(i) == 3)
 			{
 				SetEntProp(i, Prop_Data, "m_takedamage", 2, 1);
 			}
-		}
-	}
-	
-	SetConVarInt(g_gravity, 800);
-	
-	g_apanhadas_handle = false;
-	
-	for (int i = 0; i <= MaxClients; i++)
-	{
-		if(IsValidClient(i))
-		{
 			ShowNewHud(i, 255, 0, 0, "As Apanhadas foram desativadas!");
 		}
 	}
+	
+	g_apanhadas_handle = false;
 	
 	PrintToChatAll("[\x04Jailbreak Days\x01] As Apanhadas foram desativadas!");
 }

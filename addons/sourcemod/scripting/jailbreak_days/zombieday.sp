@@ -1,7 +1,3 @@
-#define ZOMBIE1 "ZOMBIE1"
-#define ZOMBIE2 "ZOMBIE2"
-
-
 void ZombieDay_Precache()
 {
 	KeyValues kv = CreateKeyValues("zombie_skins");
@@ -15,7 +11,6 @@ void ZombieDay_Precache()
 	
 	char Model[150];
 	char ModelName[PLATFORM_MAX_PATH];
-	
 	do
 	{
 		kv.GetString("name", ModelName, sizeof(ModelName));
@@ -29,30 +24,25 @@ void ZombieDay_Precache()
 	return;
 }
 
-public int Zombie_Menu_Handler(Menu menu_zombie, MenuAction action, int param1, int param2)
+public int Zombie_Menu_Handler(Menu menu, MenuAction action, int client, int choice)
 {
 	if(action == MenuAction_Select)
 	{
-		char info[32];
-		menu_zombie.GetItem(param2, info, sizeof(info));
-		if(StrEqual(info, ZOMBIE1))
+		switch(choice)
 		{
-			AtivarZombie();
-		}
-		if(StrEqual(info, ZOMBIE2))
-		{
-			DesativarZombie();
+			case 0:AtivarZombie();
+			case 1:DesativarZombie();
 		}
 	}
 	else if (action == MenuAction_End)
 	{
-		delete menu_zombie;
+		delete menu;
 	}
 }
 
 public Action Menu_ZombieDay(int client, int args)
 {
-	if(g_zombie_enable)
+	if(g_JailbreakDays_ZombieDay_enable)
 	{
 		if(num_days < 1)
 		{
@@ -60,32 +50,24 @@ public Action Menu_ZombieDay(int client, int args)
 		}
 		else
 		{
-			if((warden_iswarden(client)) || CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
+			if((warden_iswarden(client)) || (g_JailbreakDays_Admins_EnableDays && CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC)))
 			{
-				Menu menu_zombie = new Menu(Zombie_Menu_Handler);
-				menu_zombie.SetTitle("Menu do Zombie Day da PT'Fun");
-				if(g_zombie_handle)
-				{
-					menu_zombie.AddItem("ZOMBIE1", "Ativar O Zombie Day", ITEMDRAW_DISABLED);
-					menu_zombie.AddItem("ZOMBIE2", "Desativar O Zombie Day");
-				}
-				else
-				{
-					menu_zombie.AddItem("ZOMBIE1", "Ativar O Zombie Day");
-					menu_zombie.AddItem("ZOMBIE2", "Desativar O Zombie Day", ITEMDRAW_DISABLED);
-				}
-				menu_zombie.ExitButton = true;
-				menu_zombie.Display(client, 20);
+				Menu menu= new Menu(Zombie_Menu_Handler);
+				menu.SetTitle("Menu do Zombie Day");
+				menu.AddItem("1", "Enable Zombie Day", g_zombie_handle?ITEMDRAW_DISABLED:ITEMDRAW_DEFAULT);
+				menu.AddItem("2", "Disable Zombie Day", g_zombie_handle ? ITEMDRAW_DEFAULT:ITEMDRAW_DISABLED);
+				menu.ExitButton = true;
+				menu.Display(client, 20);
 			}
 			else
 			{
-				PrintToChat(client, "[\x04Jailbreak Days\x01] Necessitas de ser \x0BWarden\x01 ou \x07Admin\x01 para usar este comando!");
+				PrintToChat(client, "[\x04Jailbreak Days\x01] You need to be an \x0BWarden\x01 %s to use this command!", g_JailbreakDays_Admins_EnableDays?"or an \x07Admin\x01":"");
 			}
 		}
 	}
 	else
 	{
-		PrintToChat(client, "[\x04Jailbreak Days\x01] Este dia está desativado!");
+		PrintToChat(client, "[\x04Jailbreak Days\x01] This day is disabled!");
 	}
 	return Plugin_Handled;
 }
@@ -93,7 +75,7 @@ public Action Menu_ZombieDay(int client, int args)
 public Action AtivarZombie()
 {
 	
-	if(g_restrict)
+	if(g_JailbreakDays_WeaponRestrict && g_restrict)
 	{
 		Restrict_SetGroupRestriction(WeaponTypePistol, 2, 0);
 		Restrict_SetGroupRestriction(WeaponTypeSMG, 2, 0);
@@ -105,8 +87,11 @@ public Action AtivarZombie()
 		Restrict_SetGroupRestriction(WeaponTypeMachineGun, 2, 0);
 		Restrict_SetGroupRestriction(WeaponTypeOther, 2, 0);
 	}
-		
-	SetConVarBool(g_parachute_check, false);
+	
+	if(g_JailbreakDays_Parachute && g_parachute_check != null)
+	{
+		SetConVarBool(g_parachute_check, false);
+	}
 		
 	for (int i = 0; i < MaxClients; i++)
 	{
@@ -117,23 +102,23 @@ public Action AtivarZombie()
 				DisarmPlayerWeapons(i);
 				GivePlayerItem(i, "weapon_knife");
 				SetEntityGravity(i, 1.0);
-				SetZombiePlayerModel(i);
+				
+				if(g_JailbreakDays_ZombieDay_skins)
+				{
+					SetZombiePlayerModel(i);
+				}
 			}
 			
-			EmitSoundToClientAny(i, "misc/ptfun/jailbreak/zombieday/v2/music1.mp3", SOUND_FROM_PLAYER, SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS, 0.25);
+			if(g_JailbreakDays_Sounds_Enable)
+			{
+				EmitSoundToClientAny(i, "misc/ptfun/jailbreak/zombieday/v2/music1.mp3", SOUND_FROM_PLAYER, SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS, 0.25);
+			}
+			ShowNewHud(i, 0, 255, 0, "O Zombie Day foi ativado!");
 		}
 	}
 	
 	
 	g_zombie_handle = true;
-	
-	for (int i = 0; i <= MaxClients; i++)
-	{
-		if(IsValidClient(i))
-		{
-			ShowNewHud(i, 0, 255, 0, "O Zombie Day foi ativado!");
-		}
-	}
 	
 	PrintToChatAll("[\x04Jailbreak Days\x01] O Zombie Day foi ativado!");
 	
@@ -146,7 +131,7 @@ public Action AtivarZombie()
 
 public Action DesativarZombie()
 {	
-	if(g_restrict)
+	if(g_JailbreakDays_WeaponRestrict && g_restrict)
 	{
 		Restrict_SetGroupRestriction(WeaponTypePistol, 2, -1);
 		Restrict_SetGroupRestriction(WeaponTypeSMG, 2, -1);
@@ -159,39 +144,38 @@ public Action DesativarZombie()
 		Restrict_SetGroupRestriction(WeaponTypeOther, 2, -1);
 	}
 	
-	SetConVarBool(g_parachute_check, true);
-	
+	if(g_JailbreakDays_Parachute && g_parachute_check != null)
+	{
+		SetConVarBool(g_parachute_check, true);
+	}
+
 	for (int i = 0; i < MaxClients; i++)
 	{
 		if(IsValidClient(i))
 		{
 			if(GetClientTeam(i) == 2)
 			{
-				SetEntityModel(i, "models/player/custom_player/legacy/tm_phoenix.mdl");	
+				if(g_JailbreakDays_ZombieDay_skins)
+				{
+					SetEntityModel(i, "models/player/custom_player/legacy/tm_phoenix.mdl");	
+				}
 			}
-		}
-	}
-	g_zombie_handle = false;
-	
-	for (int i = 0; i <= MaxClients; i++)
-	{
-		if(IsValidClient(i))
-		{
 			ShowNewHud(i, 255, 0, 0, "O Zombie Day foi desativado!");
 		}
 	}
+	g_zombie_handle = false;
 	
 	PrintToChatAll("[\x04Jailbreak Days\x01] O Zombie Day foi desativado!");
 }
 
 public Action Menu_ZombieDay_Skins(int client, int args)
 {
-	if(g_zombie_enable)
+	if(g_JailbreakDays_ZombieDay_enable)
 	{
 		if(CheckCommandAccess(client, "", ADMFLAG_CUSTOM1, true))
 		{
 			Menu menu_zombie = new Menu(Zombie_Skin_Menu_Handler);
-			menu_zombie.SetTitle("Menu das Skins de Zombie da PT'Fun");
+			menu_zombie.SetTitle("Menu das Skins de Zombie");
 			KeyValues kv = CreateKeyValues("zombie_skins");
 	
 			kv.ImportFromFile(Zombies_Path);
@@ -252,9 +236,9 @@ public int Zombie_Skin_Menu_Handler(Menu menu_zombie, MenuAction action, int cli
 {
 	if(action == MenuAction_Select)
 	{
-		char info[32];
-		menu_zombie.GetItem(choice, info, sizeof(info));
-		SetClientCookie(client, cookie_zombieskins, info);
+		char buffer[10];
+		IntToString(choice, buffer, sizeof(buffer));
+		SetClientCookie(client, cookie_zombieskins, buffer);
 		g_ZombieSkins[client] = choice;
 		
 		char SkinName[256];

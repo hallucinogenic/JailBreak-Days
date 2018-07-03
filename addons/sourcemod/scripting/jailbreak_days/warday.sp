@@ -1,68 +1,55 @@
-#define WARDAY1 "WARDAY1"
-#define WARDAY2 "WARDAY2"
-
-public int WarDay_Menu_Handler(Menu menu_warday, MenuAction action, int param1, int param2)
+public int WarDay_Menu_Handler(Menu menu, MenuAction action, int client, int choice)
 {
 	if(action == MenuAction_Select)
 	{
-		char info[32];
-		menu_warday.GetItem(param2, info, sizeof(info));
-		if(StrEqual(info, WARDAY1))
+		switch(choice)
 		{
-			SelecionarArmaWarday(param1, param2);
-		}
-		if(StrEqual(info, WARDAY2))
-		{
-			DesativarWarDay();
+			case 0:SelecionarArmaWarDay(client);
+			case 1:DesativarWarDay();
 		}
 	}
 	else if (action == MenuAction_End)
 	{
-		delete menu_warday;
+		delete menu;
 	}
 }
 
-public Action Menu_Warday(int client, int args)
+public Action Menu_WarDay(int client, int args)
 {
-	if(g_warday_enable)
+	if(g_JailbreakDays_WarDay_enable)
 	{
-		if(num_special_days < GetConVarInt(g_days_time))
+		if(num_special_days < g_JailbreakDays_Days_Time)
 		{
-			PrintToChat(client, "[\x04Jailbreak Days\x01] Só poderás ativar este dia daqui a \x0E%d\x01 rondas!", (GetConVarInt(g_days_time) - num_special_days));
+			PrintToChat(client, "[\x04Jailbreak Days\x01] You can only enable this day after \x0E%d\x01 rounds!", (g_JailbreakDays_Days_Time - num_special_days));
+			return Plugin_Continue;
 		}
 		else
 		{
-			if((warden_iswarden(client)) || CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
+			if((warden_iswarden(client)) || (g_JailbreakDays_Admins_EnableDays && CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC)))
 			{
-				Menu menu_warday = new Menu(WarDay_Menu_Handler);
-				menu_warday.SetTitle("Menu do War Day da PT'Fun");
-				if(g_warday_handle)
-				{
-					menu_warday.AddItem("WARDAY1", "Ativar o War Day", ITEMDRAW_DISABLED);
-					menu_warday.AddItem("WARDAY2", "Desativar o War Day");
-				}
-				else
-				{
-					menu_warday.AddItem("WARDAY1", "Ativar o War Day");
-					menu_warday.AddItem("WARDAY2", "Desativar o War Day", ITEMDRAW_DISABLED);
-				}
-				menu_warday.ExitButton = true;
-				menu_warday.Display(client, 20);
+				Menu menu = new Menu(WarDay_Menu_Handler);
+				menu.SetTitle("Menu do War Day");
+				
+				menu.AddItem("1", "Enable War Day", g_warday_handle?ITEMDRAW_DISABLED:ITEMDRAW_DEFAULT);
+				menu.AddItem("2", "Disable War Day", g_warday_handle?ITEMDRAW_DEFAULT:ITEMDRAW_DISABLED);
+				menu.ExitButton = true;
+				menu.Display(client, 20);
 			}
 			else
 			{
-				PrintToChat(client, "[\x04Jailbreak Days\x01] Necessitas de ser \x0BWarden\x01 ou \x07Admin\x01 para usar este comando!");
+				PrintToChat(client, "[\x04Jailbreak Days\x01] You need to be an \x0BWarden\x01 %s to use this command!", g_JailbreakDays_Admins_EnableDays?"or an \x07Admin\x01":"");
 			}
 		}
 	}
 	else
 	{
-		PrintToChat(client, "[\x04Jailbreak Days\x01] Este dia está desativado!");
+		PrintToChat(client, "[\x04Jailbreak Days\x01] This day is disabled!");
+		return Plugin_Continue;
 	}
 	return Plugin_Handled;
 }
 
-public Action AtivarWarDay(char [] weapon)
+public Action AtivarWarDay(char[] primary, char[] secondary)
 {	
 	for (int i = 0; i < MaxClients; i++)
 	{
@@ -70,7 +57,16 @@ public Action AtivarWarDay(char [] weapon)
 		{
 			DisarmPlayerWeapons(i);
 			GivePlayerItem(i, "weapon_knife");
-			GivePlayerItem(i, weapon);
+			
+			if(!StrEqual(primary, "none", true))
+			{
+				GivePlayerItem(i, primary);
+			}
+			
+			if(!StrEqual(secondary, "none", true))
+			{
+				GivePlayerItem(i, secondary);
+			}
 		}
 	}
 	
@@ -107,38 +103,37 @@ public Action DesativarWarDay()
 	PrintToChatAll("[\x04Jailbreak Days\x01] O War Day foi desativado!");
 }
 
-public int SelecionarArmaWarday_Handler(Menu menu_arma_w_select, MenuAction action, int param1, int param2)
+public Action SelecionarArmaWarDay(int client)
 {
-	if(action == MenuAction_Select)
-	{
-		char info[32];
-		menu_arma_w_select.GetItem(param2, info, sizeof(info));
-		AtivarWarDay(info);
-	}
-	else if (action == MenuAction_End)
-	{
-		delete menu_arma_w_select;
-	}
-}
-
-public Action SelecionarArmaWarday(int client, int args)
-{
-	if(g_warday_enable)
+	if(g_JailbreakDays_WarDay_enable)
 	{
 		if((warden_iswarden(client)))
 		{
-			Menu menu_arma_w_select = new Menu(SelecionarArmaWarday_Handler);
-			WeaponsMenuItems(menu_arma_w_select);
-			menu_arma_w_select.ExitButton = true;
-			menu_arma_w_select.Display(client, 20);
+			if(g_JailbreakDays_WeaponMenu == 1 || g_JailbreakDays_WeaponMenu == 3)
+			{
+				WeaponsMenuItems_Primary(client);
+			}
+			else
+			{
+				strcopy(g_PrimeWeapon_Name, sizeof(g_primeWeapon_Name), "none");
+			}
+			
+			if(g_JailbreakDays_WeaponMenu == 2 || g_JailbreakDays_WeaponMenu == 3)
+			{
+				WeaponsMenuItems_Pistol(client);
+			}
+			else
+			{
+				strcopy(g_PistolWeapon_Name, sizeof(g_PistolWeapon_Name), "none");
+			}
 		}
 		else
 		{
-			PrintToChat(client, "[\x04Jailbreak Days\x01] Necessitas de ser \x0BWarden\x01 ou \x07Admin\x01 para usar este comando!");
+			PrintToChat(client, "[\x04Jailbreak Days\x01] You need to be an \x0BWarden\x01 %s to use this command!", g_JailbreakDays_Admins_EnableDays?"or an \x07Admin\x01":"");
 		}
 	}
 	else
 	{
-		PrintToChat(client, "[\x04Jailbreak Days\x01] Este dia está desativado!");
+		PrintToChat(client, "[\x04Jailbreak Days\x01] This day is disabled!");
 	}
 }

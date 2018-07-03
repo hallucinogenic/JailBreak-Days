@@ -95,8 +95,8 @@ public int Native_ActivateDay(Handle plugin, int numParams)
 	
 	switch(day)
 	{
-		case 1:SelecionarArmaRoyal(client, 1);
-		case 2:SelecionarArmaWarday(client, 1);
+		case 1:SelecionarArmaRoyal(client);
+		case 2:SelecionarArmaWarDay(client);
 		case 3:AtivarEscondidas();
 		case 4:AtivarApanhadas();
 		case 5:AtivarZombie();

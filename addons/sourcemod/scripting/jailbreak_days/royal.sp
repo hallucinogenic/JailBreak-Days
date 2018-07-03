@@ -1,69 +1,58 @@
-#define ROYAL1 "ROYAL1"
-#define ROYAL2 "ROYAL2"
-
-public int Royal_Menu_Handler(Menu menu_royal, MenuAction action, int param1, int param2)
+public int Royal_Menu_Handler(Menu menu, MenuAction action, int client, int choice)
 {
 	if(action == MenuAction_Select)
 	{
-		char info[32];
-		menu_royal.GetItem(param2, info, sizeof(info));
-		if(StrEqual(info, ROYAL1))
+		switch(choice)
 		{
-			SelecionarArmaRoyal(param1, param2);
-		}
-		if(StrEqual(info, ROYAL2))
-		{
-			DesativarRoyalDay();
+			case 0:
+			{
+				SelecionarArmaRoyal(client);
+			}
+			case 1:
+			{
+				DesativarRoyalDay();
+			}
 		}
 	}
 	else if (action == MenuAction_End)
 	{
-		delete menu_royal;
+		delete menu;
 	}
 }
 
 public Action Menu_Royal(int client, int args)
 {
-	if(g_royalday_enable)
+	if(g_JailbreakDays_Royal_enable)
 	{
-		if(num_special_days < GetConVarInt(g_days_time))
+		if(num_special_days < g_JailbreakDays_Days_Time)
 		{
-			PrintToChat(client, "[\x04Jailbreak Days\x01] Só poderás ativar este dia daqui a \x0E%d\x01 rondas!", (GetConVarInt(g_days_time) - num_special_days));
+			PrintToChat(client, "[\x04Jailbreak Days\x01] You can only enable this day after \x0E%d\x01 rounds!", (g_JailbreakDays_Days_Time - num_special_days));
 		}
 		else
 		{
-			if((warden_iswarden(client)) || CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
+			if((warden_iswarden(client)) || (g_JailbreakDays_Admins_EnableDays && (g_JailbreakDays_Admins_EnableDays && CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))))
 			{
-				Menu menu_royal = new Menu(Royal_Menu_Handler);
-				menu_royal.SetTitle("Menu do Royal Day da PT'Fun");
-				
-				if(g_royalday_handle)
-				{
-					menu_royal.AddItem("ROYAL1", "Ativar o Royal Day", ITEMDRAW_DISABLED);
-					menu_royal.AddItem("ROYAL2", "Desativar o Royal Day");
-				}
-				else
-				{
-					menu_royal.AddItem("ROYAL1", "Ativar o Royal Day");
-					menu_royal.AddItem("ROYAL2", "Desativar o Royal Day", ITEMDRAW_DISABLED);
-				}
-				menu_royal.ExitButton = true;
-				menu_royal.Display(client, 20);
+				Menu menu = new Menu(Royal_Menu_Handler);
+				menu.SetTitle("Royal Day Menu");
+				menu.AddItem("1", "Enable Royal Day", g_royalday_handle?ITEMDRAW_DISABLED:ITEMDRAW_DEFAULT);
+				menu.AddItem("2", "Disable Royal Day", g_royalday_handle ? ITEMDRAW_DEFAULT:ITEMDRAW_DISABLED);
+				menu.ExitButton = true;
+				menu.Display(client, 20);
 			}
 			else
 			{
-				PrintToChat(client, "[\x04Jailbreak Days\x01] Necessitas de ser \x0BWarden\x01 ou \x07Admin\x01 para usar este comando!");
+				PrintToChat(client, "[\x04Jailbreak Days\x01] You need to be an \x0BWarden\x01 %s to use this command!", g_JailbreakDays_Admins_EnableDays?"or an \x07Admin\x01":"");
 			}
 		}
 	}
 	else
 	{
-		PrintToChat(client, "[\x04Jailbreak Days\x01] Este dia está desativado!");
+		PrintToChat(client, "[\x04Jailbreak Days\x01] This day is disabled!");
 	}
 	return Plugin_Handled;
 }
 
-public Action AtivarRoyalDay(char [] weapon)
+public Action AtivarRoyalDay(char[] primary, char[] secondary)
 {	
 	for (int i = 0; i < MaxClients; i++)
 	{
@@ -73,7 +62,16 @@ public Action AtivarRoyalDay(char [] weapon)
 			{
 				DisarmPlayerWeapons(i);
 				GivePlayerItem(i, "weapon_knife");
-				GivePlayerItem(i, weapon);
+				if(!StrEqual(primary, "none", true))
+				{
+					GivePlayerItem(i, primary);
+				}
+				
+				if(!StrEqual(secondary, "none", true))
+				{
+					GivePlayerItem(i, secondary);
+				}
+				
 				Hide(i);
 			}
 			else if(GetClientTeam(i) == 3)
@@ -101,11 +99,11 @@ public Action AtivarRoyalDay(char [] weapon)
 	{
 		if(IsValidClient(i))
 		{
-			ShowNewHud(i, 0, 255, 0, "O Royal Day foi ativado!");
+			ShowNewHud(i, 0, 255, 0, "Royal Day has been enabled!");
 		}
 	}
 	
-	PrintToChatAll("[\x04Jailbreak Days\x01] O Royal Day foi ativado!");
+	PrintToChatAll("[\x04Jailbreak Days\x01] Royal Day has been enabled!");
 	g_royalday_handle = true;
 	
 	/* 
@@ -146,45 +144,30 @@ public Action DesativarRoyalDay()
 	{
 		if(IsValidClient(i))
 		{
-			ShowNewHud(i, 255, 0, 0, "O Royal Day foi desativado!");
+			ShowNewHud(i, 255, 0, 0, "Royal Day has been disabled!");
 		}
 	}
-	PrintToChatAll("[\x04Jailbreak Days\x01] O Royal Day foi desativado!");
+	PrintToChatAll("[\x04Jailbreak Days\x01] Royal Day has been disabled!");
 }
 
-public int SelecionarArmaRoyal_Handler(Menu menu_arma_royal_select, MenuAction action, int param1, int param2)
-{
-	if(action == MenuAction_Select)
-	{
-		char info[32];
-		menu_arma_royal_select.GetItem(param2, info, sizeof(info));
-		AtivarRoyalDay(info);
-	}
-	else if (action == MenuAction_End)
-	{
-		delete menu_arma_royal_select;
-	}
-}
 
-public Action SelecionarArmaRoyal(int client, int args)
+public Action SelecionarArmaRoyal(int client)
 {
-	if(g_royalday_enable)
+	if(g_JailbreakDays_Royal_enable)
 	{
 		if((warden_iswarden(client)) || (GetUserFlagBits(client) && ADMFLAG_GENERIC))
 		{
-			Menu menu_arma_royal_select = new Menu(SelecionarArmaRoyal_Handler);
-			menu_arma_royal_select.SetTitle("Seleciona a Arma do Dia");
-			WeaponsMenuItems(menu_arma_royal_select);
-			menu_arma_royal_select.ExitButton = true;
-			menu_arma_royal_select.Display(client, 20);
+			WeaponsMenuItems_Primary(client);
+			WeaponsMenuItems_Pistol(client);
+			AtivarRoyalDay(g_PrimeWeapon_Name, g_PistolWeapon_Name);
 		}
 		else
 		{
-			PrintToChat(client, "[\x04Jailbreak Days\x01] Necessitas de ser \x0BWarden\x01 ou \x07Admin\x01 para usar este comando!");
+			PrintToChat(client, "[\x04Jailbreak Days\x01] You need to be an \x0BWarden\x01 %s to use this command!", g_JailbreakDays_Admins_EnableDays?"or an \x07Admin\x01":"");
 		}
 	}
 	else
 	{
-		PrintToChat(client, "[\x04Jailbreak Days\x01] Este dia está desativado!");
+		PrintToChat(client, "[\x04Jailbreak Days\x01] This day is disabled!");
 	}
 }

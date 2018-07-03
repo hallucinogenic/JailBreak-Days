@@ -1,27 +1,89 @@
 // Jailbreak Days's Gun Menu
-void WeaponsMenuItems(Menu menu)
+public int SelecionarArmaPistol_Handler(Menu menu, MenuAction action, int param1, int param2)
 {
+	if(action == MenuAction_Select)
+	{
+		char info[32];
+		menu.GetItem(param2, info, sizeof(info));
+		strcopy(g_PistolWeapon_Name, sizeof(g_PistolWeapon_Name), info);
+	}
+	else if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+}
+public int SelecionarArmaPrimary_Handler(Menu menu, MenuAction action, int param1, int param2)
+{
+	if(action == MenuAction_Select)
+	{
+		char info[32];
+		menu.GetItem(param2, info, sizeof(info));
+		strcopy(g_PrimeWeapon_Name, sizeof(g_PrimeWeapon_Name), info);
+	}
+	else if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+}
+
+void WeaponsMenuItems_Primary(int client)
+{
+	Menu menu = new Menu(SelecionarArmaPrimary_Handler);
+	menu.SetTitle("Select the Primary Gun for the day:");
 	KeyValues kv = CreateKeyValues("jailbreak_days_guns");
+	menu.AddItem("none", "No Primary Guns");
 	
 	kv.ImportFromFile(Guns_Path);
 	
-	if (!kv.GotoFirstSubKey())
-	{
-			return;
-	}
 	
 	char ClassID[150];
 	char name[150];
 	
-	do
-	{		
-		kv.GetSectionName(ClassID, sizeof(ClassID));
-		kv.GetString("weapon_name", name, sizeof(name));
-		menu.AddItem(ClassID, name);
-	} while (kv.GotoNextKey());
+	if(kv.JumpToKey("Primary Guns"))
+	{
+		kv.GotoFirstSubKey();
+		do
+		{
+			kv.GetSectionName(ClassID, sizeof(ClassID));
+			kv.GetString("weapon_name", name, sizeof(name));
+			menu.AddItem(ClassID, name);
+		}while (kv.GotoNextKey());
+		kv.Rewind();
+		delete kv;
+	}
 	
-	delete kv;
-	return;
+	menu.ExitButton = true;
+	menu.Display(client, 20);
+}
+
+void WeaponsMenuItems_Pistol(int client)
+{
+	Menu menu = new Menu(SelecionarArmaPistol_Handler);
+	menu.SetTitle("Select the Pistol for the Day:");
+	menu.AddItem("none", "No Pistols");
+	
+	KeyValues kv = CreateKeyValues("jailbreak_days_guns");
+	
+	kv.ImportFromFile(Guns_Path);
+	
+	
+	char ClassID[150];
+	char name[150];
+	
+	if(kv.JumpToKey("Pistols"))
+	{
+		kv.GotoFirstSubKey();
+		do
+		{
+			kv.GetSectionName(ClassID, sizeof(ClassID));
+			kv.GetString("weapon_name", name, sizeof(name));
+			menu.AddItem(ClassID, name);
+		}while (kv.GotoNextKey());
+		kv.Rewind();
+		delete kv;
+	}
+	menu.ExitButton = true;
+	menu.Display(client, 20);
 }
 
 // Functions to toggle the radar's HUD
@@ -38,15 +100,15 @@ void UnHide(int client)
 // A Command to give the possibility to make again a specialday in the next round;
 public Action Command_Freeday(int client, int args)
 {
-	if(!g_fd_command_enable)
+	if(!g_JailbreakDays_FDCommand)
 	{
 		PrintToChat(client, "[\x04Jailbreak Days\x01] Lamento, mas este comando encontra-se desativado pelo servidor!");
 		return;
 	}
 	
-	if(num_special_days == GetConVarInt(g_days_time))
+	if(num_special_days == g_JailbreakDays_Days_Time)
 	{
-		if((warden_iswarden(client)) || CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
+		if((warden_iswarden(client)) || (g_JailbreakDays_Admins_EnableDays && CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC)))
 		{
 				Menu menu = new Menu(Freeday_Handler);
 				menu.SetTitle("Queres descontar uma ronda para fazer um dia especial?\nPoderão fazer na próxima ronda");
@@ -57,7 +119,7 @@ public Action Command_Freeday(int client, int args)
 		}
 		else
 		{
-			PrintToChat(client, "[\x04Jailbreak Days\x01] Necessitas de ser \x0BWarden\x01 ou \x07Admin\x01 para usar este comando!");
+			PrintToChat(client, "[\x04Jailbreak Days\x01] You need to be an \x0BWarden\x01 %s to use this command!", g_JailbreakDays_Admins_EnableDays?"or an \x07Admin\x01":"");
 		}
 	}
 	else
@@ -66,13 +128,11 @@ public Action Command_Freeday(int client, int args)
 	}
 }
 
-public int Freeday_Handler(Menu menu, MenuAction action, int param1, int param2)
+public int Freeday_Handler(Menu menu, MenuAction action, int client, int choice)
 {
 	if(action == MenuAction_Select)
 	{
-		char info[32];
-		menu.GetItem(param2, info, sizeof(info));
-		if(StrEqual(info, "1"))
+		if(choice == 0)
 		{
 			num_special_days -= 1;
 			PrintToChatAll("[\x04Jailbreak Days\x01] O \x0BWarden\x01 descontou uma ronda!");
@@ -91,164 +151,23 @@ public Action Command_DaysMusic(int client, int args)
 	{
 		Days_Music[client] = false;
 		SetClientCookie(client, cookie_daysmusics, "0");
-		PrintToChat(client, "[\x04Jailbreak Days\x01] Agora deixarás de \x04ouvir as músicas\x01 dos dias");
 	}
 	else
 	{
 		Days_Music[client] = true;
 		SetClientCookie(client, cookie_daysmusics, "1");
-		PrintToChat(client, "[\x04Jailbreak Days\x01] Agora passarás a \x04ouvir as músicas\x01 dos dias");
 	}
+	
+	PrintToChat(client, "[\x04Jailbreak Days\x01] You have \x0E%sabled\x01 the Day's Music!", Days_Music[client]?"en":"dis");
 }
 
 public bool HasPlayerFlags(int client, char flags[40])
 {
-	if(StrContains(flags, "a") != -1)
+	int flag = ReadFlagString(flags);
+	
+	if(CheckCommandAccess(client, "", flag, true))
 	{
-		if(CheckCommandAccess(client, "", ADMFLAG_RESERVATION, true))
-		{
-			return true;
-		}
-	}		
-	else if(StrContains(flags, "b") != -1)
-	{
-		if(CheckCommandAccess(client, "", ADMFLAG_GENERIC, true))
-		{
-			return true;
-		}
-	}
-	else if(StrContains(flags, "c") != -1)
-	{
-		if(CheckCommandAccess(client, "", ADMFLAG_KICK, true))
-		{
-			return true;
-		}
-	}
-	else if(StrContains(flags, "d") != -1)
-	{
-		if(CheckCommandAccess(client, "", ADMFLAG_BAN, true))
-		{
-			return true;
-		}
-	}
-	else if(StrContains(flags, "e") != -1)
-	{
-		if(CheckCommandAccess(client, "", ADMFLAG_UNBAN, true))
-		{
-			return true;
-		}
-	}	
-	else if(StrContains(flags, "f") != -1)
-	{
-		if(CheckCommandAccess(client, "", ADMFLAG_SLAY, true))
-		{
-			return true;
-		}
-	}	
-	else if(StrContains(flags, "g") != -1)
-	{
-		if(CheckCommandAccess(client, "", ADMFLAG_CHANGEMAP, true))
-		{
-			return true;
-		}
-	}
-	else if(StrContains(flags, "h") != -1)
-	{
-		if(CheckCommandAccess(client, "", ADMFLAG_CONVARS, true))
-		{
-			return true;
-		}
-	}		
-	else if(StrContains(flags, "i") != -1)
-	{
-		if(CheckCommandAccess(client, "", ADMFLAG_CONFIG, true))
-		{
-			return true;
-		}
-	}
-	else if(StrContains(flags, "j") != -1)
-	{
-		if(CheckCommandAccess(client, "", ADMFLAG_CHAT, true))
-		{
-			return true;
-		}
-	}		
-	else if(StrContains(flags, "k") != -1)
-	{
-		if(CheckCommandAccess(client, "", ADMFLAG_VOTE, true))
-		{
-			return true;
-		}
-	}	
-	else if(StrContains(flags, "l") != -1)
-	{
-		if(CheckCommandAccess(client, "", ADMFLAG_PASSWORD, true))
-		{
-			return true;
-		}
-	}
-	else if(StrContains(flags, "m") != -1)
-	{
-		if(CheckCommandAccess(client, "", ADMFLAG_RCON, true))
-		{
-			return true;
-		}
-	}		
-	else if(StrContains(flags, "n") != -1)
-	{
-		if(CheckCommandAccess(client, "", ADMFLAG_CHEATS, true))
-		{
-			return true;
-		}
-	}		
-	else if(StrContains(flags, "z") != -1)
-	{
-		if(CheckCommandAccess(client, "", ADMFLAG_ROOT, true))
-		{
-			return true;
-		}
-	}		
-	else if(StrContains(flags, "o") != -1)
-	{
-		if(CheckCommandAccess(client, "", ADMFLAG_CUSTOM1, true))
-		{
-			return true;
-		}
-	}		
-	else if(StrContains(flags, "p") != -1)
-	{
-		if(CheckCommandAccess(client, "", ADMFLAG_CUSTOM2, true))
-		{
-			return true;
-		}
-	}
-	else if(StrContains(flags, "q") != -1)
-	{
-		if(CheckCommandAccess(client, "", ADMFLAG_CUSTOM3, true))
-		{
-			return true;
-		}
-	}		
-	else if(StrContains(flags, "r") != -1)
-	{
-		if(CheckCommandAccess(client, "", ADMFLAG_CUSTOM4, true))
-		{
-			return true;
-		}
-	}			
-	else if(StrContains(flags, "s") != -1)
-	{
-		if(CheckCommandAccess(client, "", ADMFLAG_CUSTOM5, true))
-		{
-			return true;
-		}
-	}			
-	else if(StrContains(flags, "t") != -1)
-	{
-		if(CheckCommandAccess(client, "", ADMFLAG_CUSTOM6, true))
-		{
-			return true;
-		}
+		return true;
 	}
 	
 	return false;
